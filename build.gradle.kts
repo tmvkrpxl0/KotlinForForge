@@ -81,29 +81,30 @@ minecraft.run {
 }
 
 dependencies {
+
+    val l = configurations["library"]
+    fun library(dependency: String) {
+        l(dependency) {
+            exclude("org.jetbrains", "annotations")
+        }
+    }
+
     minecraft("net.minecraftforge:forge:$mc_version-$forge_version")
 
-    // Default classpath
-    include("org.jetbrains.kotlin", "kotlin-stdlib-jdk8", kotlin_version, max_kotlin)
-    include("org.jetbrains.kotlin", "kotlin-reflect", kotlin_version, max_kotlin)
-    include("org.jetbrains.kotlinx", "kotlinx-coroutines-core", coroutines_version, max_coroutines)
-    include("org.jetbrains.kotlinx", "kotlinx-coroutines-core-jvm", coroutines_version, max_coroutines)
-    include("org.jetbrains.kotlinx", "kotlinx-coroutines-jdk8", coroutines_version, max_coroutines)
-    include("org.jetbrains.kotlinx", "kotlinx-serialization-json", serialization_version, max_serialization)
-    // Inherited
-    include("org.jetbrains.kotlin", "kotlin-stdlib-jdk7", kotlin_version, max_kotlin, true)
-    include("org.jetbrains.kotlinx", "kotlinx-serialization-core", serialization_version, max_serialization, true)
-    include("org.jetbrains.kotlin", "kotlin-stdlib", kotlin_version, max_kotlin, true)
-    include("org.jetbrains.kotlin", "kotlin-stdlib-common", kotlin_version, max_kotlin, true)
+    library("org.jetbrains.kotlin:kotlin-reflect:$kotlin_version")
+    library("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version")
+    library("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutines_version")
+    library("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:$coroutines_version")
+    library("org.jetbrains.kotlinx:kotlinx-serialization-json:$serialization_version")
 
-    // KFF Modules
+    include("thedarkcolour", "kotlinforforge", "${project.version}", "4.0", false)
     include("thedarkcolour", "kfflib", "${project.version}", "4.0", false)
-    include("thedarkcolour", "kfflang", "${project.version}", "4.0", false)
 }
+
 configurations.all {
     resolutionStrategy.dependencySubstitution {
         substitute(module("thedarkcolour:kfflib")).using(project(":kfflib"))
-        substitute(module("thedarkcolour:kfflang")).using(project(":kfflang"))
+        substitute(module("thedarkcolour:kotlinforforge")).using(project(":kfflang"))
     }
 }
 

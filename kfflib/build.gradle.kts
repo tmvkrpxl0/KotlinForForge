@@ -5,6 +5,9 @@ val annotations_version: String by project
 val coroutines_version: String by project
 val serialization_version: String by project
 
+val mc_version: String by project
+val forge_version: String by project
+
 plugins {
     id("org.jetbrains.kotlin.jvm")
     id("net.minecraftforge.gradle")
@@ -43,7 +46,7 @@ minecraft.runs.all {
 }
 
 dependencies {
-    minecraft("net.minecraftforge:forge:1.19-41.0.91")
+    minecraft("net.minecraftforge:forge:$mc_version-$forge_version")
 
     val library = configurations["library"]
     
@@ -58,12 +61,12 @@ dependencies {
     library("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:$coroutines_version", excludeAnnotations)
     library("org.jetbrains.kotlinx:kotlinx-serialization-json:$serialization_version", excludeAnnotations)
 
-    implementation(group = "thedarkcolour", name = "kfflang", version = "[${project.version}, 4.0)")
+    implementation(group = "thedarkcolour", name = "kotlinforforge", version = "[${project.version}, 4.0)")
 }
 
 configurations.all {
     resolutionStrategy.dependencySubstitution {
-        substitute(module("thedarkcolour:kfflang")).using(project(":kfflang")).because("Include from local instead of maven")
+        substitute(module("thedarkcolour:kotlinforforge")).using(project(":kfflang")).because("Include from local instead of maven")
     }
 }
 

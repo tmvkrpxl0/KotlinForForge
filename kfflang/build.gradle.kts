@@ -1,4 +1,5 @@
-import net.minecraftforge.gradle.userdev.tasks.JarJar
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import net.minecraftforge.gradle.patcher.tasks.ReobfuscateJar
 import org.jetbrains.kotlin.utils.addToStdlib.cast
 
 val kotlin_version: String by project
@@ -9,19 +10,19 @@ val max_kotlin: String by project
 val max_coroutines: String by project
 val max_serialization: String by project
 
+val mc_version: String by project
+val forge_version: String by project
+
 plugins {
+    id("com.github.johnrengelman.shadow") version "7.1.2"
     id("org.jetbrains.kotlin.jvm")
     id("org.jetbrains.kotlin.plugin.serialization")
     id("net.minecraftforge.gradle")
-    id("com.modrinth.minotaur") version "2.+"
     `maven-publish`
 }
 
 java.toolchain.languageVersion.set(JavaLanguageVersion.of(17))
 kotlin.jvmToolchain {}
-
-// Enable JarInJar
-jarJar.enable()
 
 val kotlinSourceJar by tasks.creating(Jar::class) {
     val kotlinSourceSet = kotlin.sourceSets.main.get()
@@ -51,6 +52,7 @@ configurations {
         extendsFrom(library)
     }
 }
+
 minecraft.runs.all {
     lazyToken("minecraft_classpath") {
         return@lazyToken configurations["library"].copyRecursive().resolve()
@@ -65,27 +67,21 @@ repositories {
 }
 
 dependencies {
-    minecraft("net.minecraftforge:forge:1.19-41.0.91")
 
-    val library = configurations["library"]
-
-    fun include(group: String, name: String, version: String) {
-        library(group = group, name = name, version = version) {
-            exclude(group = "org.jetbrains", module = "annotations")
-            isTransitive = false
+    val l = configurations["library"]
+    fun library(dependency: String) {
+        l(dependency) {
+            exclude("org.jetbrains", "annotations")
         }
     }
 
-    include("org.jetbrains.kotlin", "kotlin-stdlib-jdk8", kotlin_version, )
-    include("org.jetbrains.kotlin", "kotlin-reflect", kotlin_version, )
-    include("org.jetbrains.kotlinx", "kotlinx-coroutines-core", coroutines_version, )
-    include("org.jetbrains.kotlinx", "kotlinx-coroutines-core-jvm", coroutines_version, )
-    include("org.jetbrains.kotlinx", "kotlinx-coroutines-jdk8", coroutines_version, )
-    include("org.jetbrains.kotlinx", "kotlinx-serialization-json", serialization_version, )
-    include("org.jetbrains.kotlin", "kotlin-stdlib-jdk7", kotlin_version)
-    include("org.jetbrains.kotlinx", "kotlinx-serialization-core", serialization_version)
-    include("org.jetbrains.kotlin", "kotlin-stdlib", kotlin_version)
-    include("org.jetbrains.kotlin", "kotlin-stdlib-common", kotlin_version)
+    minecraft("net.minecraftforge:forge:$mc_version-$forge_version")
+
+    library("org.jetbrains.kotlin:kotlin-reflect:$kotlin_version")
+    library("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version")
+    library("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutines_version")
+    library("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:$coroutines_version")
+    library("org.jetbrains.kotlinx:kotlinx-serialization-json:$serialization_version")
 }
 
 minecraft.run {
@@ -99,7 +95,7 @@ minecraft.run {
             property("forge.logging.console.level", "debug")
 
             mods {
-                create("kfflang") {
+                create("kotlinforforge") {
                     source(sourceSets.main.get())
                 }
 
@@ -116,7 +112,7 @@ minecraft.run {
             property("forge.logging.console.level", "debug")
 
             mods {
-                create("kfflang") {
+                create("kotlinforforge") {
                     source(sourceSets.main.get())
                 }
 
@@ -129,11 +125,14 @@ minecraft.run {
 }
 
 tasks.withType<Jar> {
+    archiveBaseName.set("kfflang")
+    archiveClassifier.set("slim")
+
     manifest {
         attributes(
             mapOf(
                 "FMLModType" to "LANGPROVIDER",
-                "Specification-Title" to "Kotlin for Forge",
+                "Specification-Title" to "Kotlin for Forge Language Provider",
                 "Automatic-Module-Name" to "kfflang",
                 "Specification-Vendor" to "Forge",
                 "Specification-Version" to "1",
@@ -147,8 +146,29 @@ tasks.withType<Jar> {
     }
 }
 
-tasks.withType<JarJar> {
-    archiveClassifier.set("obf")
+val shadowJar = tasks.withType<ShadowJar> {
+    configurations = listOf(project.configurations["library"])
+    archiveClassifier.set("")
+    // finalizedBy("reobfShadowJar")
+
+    dependencies {
+        include(dependency("org.jetbrains.kotlin:kotlin-stdlib:${kotlin_version}"))
+        include(dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk7:${kotlin_version}"))
+        include(dependency("org.jetbrains.kotlin:kotlin-stdlib-jdk8:${kotlin_version}"))
+        include(dependency("org.jetbrains.kotlin:kotlin-reflect:${kotlin_version}"))
+        include(dependency("org.jetbrains:annotations:${annotations_version}"))
+        include(dependency("org.jetbrains.kotlinx:kotlinx-coroutines-core:${coroutines_version}"))
+        include(dependency("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:${coroutines_version}"))
+        include(dependency("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:${coroutines_version}"))
+        include(dependency("org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:${serialization_version}"))
+        include(dependency("org.jetbrains.kotlinx:kotlinx-serialization-json-jvm:${serialization_version}"))
+    }
+}
+
+tasks.assemble.get().dependsOn(shadowJar)
+
+tasks.withType<ReobfuscateJar> {
+    shadowJar
 }
 
 // Only require the lang provider to use explicit visibility modifiers, not the test mod
@@ -160,15 +180,17 @@ fun DependencyHandler.minecraft(
     dependencyNotation: Any
 ): Dependency? = add("minecraft", dependencyNotation)
 
-fun DependencyHandler.library(
-    dependencyNotation: Any
-): Dependency? = add("library", dependencyNotation)
-
 publishing {
     publications {
         create<MavenPublication>("maven") {
+            artifactId = "kotlinforforge"
             from(components["kotlin"])
-            artifact(kotlinSourceJar)
+            artifact(project.tasks.named("shadowJar")) {
+                classifier = ""
+            }
+            artifact(kotlinSourceJar) {
+                classifier = "sources"
+            }
 
             // Remove Minecraft from transitive dependencies
             pom.withXml {
@@ -178,13 +200,4 @@ publishing {
             }
         }
     }
-}
-
-modrinth {
-    projectId.set("ordsPcFz")
-    versionNumber.set("${project.version}")
-    versionType.set("release")
-    uploadFile.set(tasks.jarJar as Any)
-    gameVersions.addAll("1.18", "1.18.1", "1.19")
-    loaders.add("forge")
 }
