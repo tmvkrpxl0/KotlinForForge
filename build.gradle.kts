@@ -1,21 +1,16 @@
+import net.minecraftforge.gradle.userdev.tasks.JarJar
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.7.10"
+    kotlin("jvm")
     id("net.minecraftforge.gradle") version "5.1.+"
 }
 
 val mc_version: String by project
 val forge_version: String by project
 
-val kotlin_version: String by project
-val annotations_version: String by project
 val coroutines_version: String by project
 val serialization_version: String by project
-
-val max_kotlin: String by project
-val max_coroutines: String by project
-val max_serialization: String by project
 
 // Current KFF version
 val kffVersion = "3.7.0"
@@ -27,7 +22,6 @@ allprojects {
 }
 
 java.toolchain.languageVersion.set(JavaLanguageVersion.of(17))
-kotlin.jvmToolchain {}
 jarJar.enable()
 
 repositories {
@@ -35,20 +29,17 @@ repositories {
     mavenLocal()
 }
 
+val library: Configuration by configurations.creating {
+    exclude("org.jetbrains", "annotations")
+}
+
 configurations {
-    val library = maybeCreate("library")
-    api.configure {
+    api {
         extendsFrom(library)
     }
 }
-minecraft.runs.all {
-    lazyToken("minecraft_classpath") {
-        return@lazyToken configurations["library"].copyRecursive().resolve()
-            .joinToString(File.pathSeparator) { it.absolutePath }
-    }
-}
 
-minecraft.run {
+minecraft {
     mappings("official", mc_version)
 
     runs {
@@ -77,28 +68,29 @@ minecraft.run {
                 }
             }
         }
+        
+        all {
+            lazyToken("minecraft_classpath") {
+                library.copyRecursive().resolve()
+                    .joinToString(separator = File.pathSeparator, transform = File::getAbsolutePath)
+            }
+        }
     }
 }
 
 dependencies {
-
-    val l = configurations["library"]
-    fun library(dependency: String) {
-        l(dependency) {
-            exclude("org.jetbrains", "annotations")
-        }
-    }
-
     minecraft("net.minecraftforge:forge:$mc_version-$forge_version")
 
-    library("org.jetbrains.kotlin:kotlin-reflect:$kotlin_version")
-    library("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version")
+    library(kotlin("reflect"))
+    library(kotlin("stdlib-jdk8"))
     library("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutines_version")
     library("org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:$coroutines_version")
     library("org.jetbrains.kotlinx:kotlinx-serialization-json:$serialization_version")
 
-    include("thedarkcolour", "kotlinforforge", "${project.version}", "4.0", false)
-    include("thedarkcolour", "kfflib", "${project.version}", "4.0", false)
+    implementation("thedarkcolour", "kotlinforforge", "[${project.version}, 4.0)")
+    implementation("thedarkcolour", "kfflib", "[${project.version}, 4.0)")
+    include(project(":kfflang"))
+    include(project(":kfflib"))
 }
 
 configurations.all {
@@ -108,29 +100,23 @@ configurations.all {
     }
 }
 
-// Adds to JarJar without using as Gradle dependency
-fun DependencyHandlerScope.include(group: String, name: String, version: String, maxVersion: String, isLibrary: Boolean = true) {
-    val lib = if (isLibrary) {
-        configurations["library"](group = group, name = name, "[$version, $maxVersion)")
-    } else {
-        implementation(group, name, "[$version, $maxVersion)")
-    }
-    jarJar(lib) {
+fun DependencyHandlerScope.include(dependency: ModuleDependency) {
+    jarJar(dependency) {
         isTransitive = false
-        jarJar.pin(this, version)
+        jarJar.pin(this, dependency.version)
     }
 }
 
-// Sets final jar name to match old name
-tasks.withType<net.minecraftforge.gradle.userdev.tasks.JarJar> {
-    archiveBaseName.set("kotlinforforge")
-    archiveClassifier.set("obf")
-}
-val compileKotlin: KotlinCompile by tasks
-compileKotlin.kotlinOptions {
-    jvmTarget = "1.8"
-}
-val compileTestKotlin: KotlinCompile by tasks
-compileTestKotlin.kotlinOptions {
-    jvmTarget = "1.8"
+tasks {
+    // Sets final jar name to match old name
+    named<JarJar>("jarJar") {
+        archiveBaseName.set("kotlinforforge")
+        archiveClassifier.set("obf")
+    }
+    
+    withType<KotlinCompile> {
+        kotlinOptions {
+            jvmTarget = "17"
+        }
+    }
 }
