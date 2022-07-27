@@ -1,6 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import net.minecraftforge.gradle.patcher.tasks.ReobfuscateJar
-import org.jetbrains.kotlin.utils.addToStdlib.cast
 
 val kotlin_version: String by project
 val annotations_version: String by project
@@ -185,19 +184,14 @@ publishing {
         create<MavenPublication>("maven") {
             artifactId = "kotlinforforge"
             from(components["kotlin"])
-            artifact(project.tasks.named("shadowJar")) {
+            artifact(project.tasks.shadowJar) {
                 classifier = ""
             }
             artifact(kotlinSourceJar) {
                 classifier = "sources"
             }
 
-            // Remove Minecraft from transitive dependencies
-            pom.withXml {
-                asNode().get("dependencies").cast<groovy.util.NodeList>().first().cast<groovy.util.Node>().children().cast<MutableList<groovy.util.Node>>().removeAll { child ->
-                    child.get("groupId").cast<groovy.util.NodeList>().first().cast<groovy.util.Node>().value() == "net.minecraftforge"
-                }
-            }
+            fg.component(this)
         }
     }
 }
