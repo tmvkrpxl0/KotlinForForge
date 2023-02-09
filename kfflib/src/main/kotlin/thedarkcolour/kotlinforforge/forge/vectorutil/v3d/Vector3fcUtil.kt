@@ -4,6 +4,7 @@ import net.minecraft.core.Vec3i
 import net.minecraft.world.phys.Vec3
 import org.joml.*
 
+// TODO Clean up when JOML 1.10.6 is released
 public operator fun Vector3f.plusAssign(other: Vector3fc){
     add(other)
 }
@@ -84,6 +85,13 @@ public operator fun Vector3fc.iterator(): FloatIterator {
         }
     }
 }
+
+public fun Vector3fc.mutable(): Vector3f {
+    if (this is Vector3f) return this
+    return Vector3f(x(), y(), z())
+}
+
+public fun Vector3f.immutable(): Vector3fc = this
 
 public operator fun Vector3f.set(index: Int, scalar: Float) {
     setComponent(index, scalar)

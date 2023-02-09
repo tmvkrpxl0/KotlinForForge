@@ -4,6 +4,7 @@ import net.minecraft.core.Vec3i
 import net.minecraft.world.phys.Vec3
 import org.joml.*
 
+// TODO Clean up when JOML 1.10.6 is released
 public operator fun Vector3d.plusAssign(other: Vector3dc) {
     add(other)
 }
@@ -90,6 +91,13 @@ public operator fun Vector3dc.iterator(): DoubleIterator {
 public operator fun Vector3d.set(index: Int, scalar: Double) {
     setComponent(index, scalar)
 }
+
+public fun Vector3dc.mutable(): Vector3d {
+    if (this is Vector3d) return this
+    return Vector3d(x(), y(), z())
+}
+
+public fun Vector3d.immutable(): Vector3dc = this
 
 public fun Vector3dc.toVector3f(): Vector3f = get(Vector3f())
 

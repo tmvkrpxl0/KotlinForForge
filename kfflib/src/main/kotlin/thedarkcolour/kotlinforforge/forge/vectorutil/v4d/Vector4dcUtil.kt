@@ -2,6 +2,7 @@ package thedarkcolour.kotlinforforge.forge.vectorutil.v4d
 
 import org.joml.*
 
+// TODO Clean up when JOML 1.10.6 is released
 public operator fun Vector4d.plusAssign(other: Vector4dc){
     add(other)
 }
@@ -94,6 +95,13 @@ public operator fun Vector4dc.iterator(): DoubleIterator {
         }
     }
 }
+
+public fun Vector4dc.mutable(): Vector4d {
+    if (this is Vector4d) return this
+    return Vector4d(x(), y(), z(), w())
+}
+
+public fun Vector4d.immutable(): Vector4dc = this
 
 public operator fun Vector4d.set(index: Int, scalar: Double) {
     setComponent(index, scalar)
